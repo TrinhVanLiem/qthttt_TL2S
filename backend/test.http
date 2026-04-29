@@ -1,0 +1,83 @@
+### Kiểm tra server
+GET http://localhost:5000/
+
+###
+
+### Đăng ký tài khoản
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Trịnh Văn Liêm",
+  "email": "liem@test.com",
+  "password": "123456"
+}
+
+###
+
+### Đăng nhập
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "liem@test.com",
+  "password": "123456"
+}
+
+###
+
+### Lấy thông tin user (thay YOUR_TOKEN bằng token sau khi login)
+GET http://localhost:5000/api/auth/me
+Authorization: Bearer YOUR_TOKEN
+
+###
+
+### Lấy danh sách ebook
+GET http://localhost:5000/api/ebooks
+
+###
+
+### Tìm kiếm ebook theo từ khóa
+GET http://localhost:5000/api/ebooks?keyword=đà nẵng
+
+###
+
+### Thêm ebook mới (cần token admin)
+POST http://localhost:5000/api/ebooks
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN
+
+{
+  "title": "Guide Đà Nẵng 3N2Đ tự túc",
+  "description": "Lịch trình chi tiết 3 ngày 2 đêm tại Đà Nẵng cho sinh viên",
+  "price": 49000,
+  "category": "mien-trung",
+  "location": "Đà Nẵng",
+  "duration": "3N2Đ",
+  "tags": ["tiết kiệm", "sinh viên", "tự túc"]
+}
+
+###
+
+### Tạo đơn hàng (thay ebookId sau khi có ebook)
+POST http://localhost:5000/api/orders
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN
+
+{
+  "items": [
+    { "ebookId": "PASTE_EBOOK_ID_HERE" }
+  ]
+}
+
+###
+
+### Lịch sử đơn hàng của tôi
+GET http://localhost:5000/api/orders/my
+Authorization: Bearer YOUR_TOKEN
+
+###
+
+### Thống kê doanh thu (admin)
+GET http://localhost:5000/api/orders/stats
+Authorization: Bearer YOUR_TOKEN
