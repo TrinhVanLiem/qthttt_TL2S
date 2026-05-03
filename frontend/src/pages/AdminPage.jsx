@@ -37,6 +37,20 @@ export default function AdminPage() {
   const [catModal, setCatModal] = useState(null); // null | 'add' | category-object
   const [catForm, setCatForm] = useState({ name: '', slug: '', description: '', icon: '📁', color: '#1B6B4A', order: 0 });
   const [catSaving, setCatSaving] = useState(false);
+  // PDF upload state (Admin create ebook)
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const pdfInputRef = useRef(null);
+
+  // Promotions state — kết nối backend thật
+  const [promos, setPromos] = useState([]);
+  const [promoForm, setPromoForm] = useState({ code: '', discount: '', type: 'percent', minOrder: '', expiry: '', active: true });
+  const [showPromoForm, setShowPromoForm] = useState(false);
+  const [copiedPromo, setCopiedPromo] = useState(null);
+  const [promoSaving, setPromoSaving] = useState(false);
+
+  // Settings state
+  const [apiStatus, setApiStatus] = useState('idle');
 
   useEffect(() => {
     Promise.all([
@@ -48,12 +62,46 @@ export default function AdminPage() {
       api.get('/partner/admin/ebooks/pending').catch(() => ({ data: [] })),
       api.get('/ebooks/admin/reviews').catch(() => ({ data: [] })),
       api.get('/categories/all').catch(() => ({ data: [] })),
-    ]).then(([s, e, o, u, pa, pe, rv, cats]) => {
+      api.get('/coupons').catch(() => ({ data: [] })),
+    ]).then(([s, e, o, u, pa, pe, rv, cats, coupons]) => {
       setStats(s.data); setEbooks(e.data); setOrders(o.data); setUsers(u.data);
       setPartnerApps(pa.data); setPendingEbooks(pe.data); setAllReviews(rv.data);
-      setCategories(cats.data);
+      setCategories(cats.data); setPromos(coupons.data);
     }).finally(() => setLoading(false));
   }, []);
+
+  const handleCreatePromo = async () => {
+    if (!promoForm.code || !promoForm.discount) return alert('Vui lòng nhập mã và giá trị giảm');
+    setPromoSaving(true);
+    try {
+      const { data } = await api.post('/coupons', {
+        ...promoForm,
+        discount: Number(promoForm.discount),
+        minOrder: Number(promoForm.minOrder) || 0,
+        expiry: promoForm.expiry || null,
+      });
+      setPromos(prev => [data, ...prev]);
+      setShowPromoForm(false);
+      setPromoForm({ code: '', discount: '', type: 'percent', minOrder: '', expiry: '', active: true });
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi tạo mã');
+    } finally { setPromoSaving(false); }
+  };
+
+  const handleTogglePromo = async (promo) => {
+    try {
+      const { data } = await api.put(`/coupons/${promo._id}`, { active: !promo.active });
+      setPromos(prev => prev.map(p => p._id === data._id ? data : p));
+    } catch (err) { alert(err.response?.data?.message || 'Lỗi cập nhật'); }
+  };
+
+  const handleDeletePromo = async (promo) => {
+    if (!window.confirm(`Xóa mã "${promo.code}"?`)) return;
+    try {
+      await api.delete(`/coupons/${promo._id}`);
+      setPromos(prev => prev.filter(p => p._id !== promo._id));
+    } catch (err) { alert(err.response?.data?.message || 'Lỗi xóa'); }
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault(); setSaving(true);
@@ -70,10 +118,19 @@ export default function AdminPage() {
         setUploading(false);
       }
       const thumbnail = images[0]?.url || '';
-      const { data } = await api.post('/ebooks', { ...form, price: Number(form.price), tags, images, thumbnail });
+      // Upload PDF nếu có
+      let fileUrl = '';
+      if (pdfFile) {
+        setPdfUploading(true);
+        const fd = new FormData(); fd.append('pdf', pdfFile);
+        const { data: pdfData } = await api.post('/upload/pdf', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        fileUrl = pdfData.url;
+        setPdfUploading(false);
+      }
+      const { data } = await api.post('/ebooks', { ...form, price: Number(form.price), tags, images, thumbnail, fileUrl });
       setEbooks([data, ...ebooks]);
       setForm({ title: '', description: '', price: '', category: 'mien-trung', location: '', duration: '', tags: '', badge: '' });
-      setImageFiles([]); setImagePreviews([]); setUploadedImages([]);
+      setImageFiles([]); setImagePreviews([]); setUploadedImages([]); setPdfFile(null);
       alert('✅ Tạo e-book thành công!');
     } catch (err) { alert(err.response?.data?.message || 'Lỗi tạo ebook'); }
     finally { setSaving(false); setUploading(false); }
@@ -231,21 +288,30 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
                           <div>
                             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Tên danh mục *</label>
                             <input required value={catForm.name} onChange={e => {
                               const name = e.target.value;
-                              const slug = catModal === 'add'
-                                ? name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-                                : catForm.slug;
+                              // Auto-generate slug từ tên (luôn luôn, kể cả khi sửa)
+                              const slug = name
+                                .toLowerCase()
+                                .normalize('NFD')
+                                .replace(/[\u0300-\u036f]/g, '')
+                                .replace(/[đĐ]/g, 'd')
+                                .replace(/\s+/g, '-')
+                                .replace(/[^a-z0-9-]/g, '')
+                                .replace(/-+/g, '-')
+                                .replace(/^-|-$/g, '');
                               setCatForm(f => ({ ...f, name, slug }));
                             }} style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Slug *</label>
-                            <input required value={catForm.slug} onChange={e => setCatForm(f => ({ ...f, slug: e.target.value }))}
-                              style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', fontFamily: 'monospace' }} />
+                            {/* Hiển thị slug được tự tạo */}
+                            {catForm.slug && (
+                              <div style={{ marginTop: 6, fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ color: '#9ca3af' }}>🔗 Slug:</span>
+                                <code style={{ background: '#f3f4f6', padding: '1px 7px', borderRadius: 4, color: '#374151', fontFamily: 'monospace' }}>{catForm.slug}</code>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -558,6 +624,187 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* ===== SETTINGS TAB ===== */}
+            {tab === 'settings' && (
+              <div style={{ maxWidth: 680 }}>
+                <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>Cài đặt hệ thống</h1>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                  {/* API Status */}
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>🔌 Kết nối hệ thống</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                      {[
+                        { label: 'Môi trường', val: import.meta.env.MODE || 'development', color: import.meta.env.MODE === 'production' ? '#16a34a' : '#d97706' },
+                        { label: 'API URL', val: import.meta.env.VITE_API_URL || 'http://localhost:5000/api', color: '#2563eb' },
+                        { label: 'Version', val: '1.0.0', color: '#374151' },
+                        { label: 'Thời gian', val: new Date().toLocaleDateString('vi-VN'), color: '#374151' },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: '#f9fafb', borderRadius: 8, padding: '12px 14px', border: '1px solid #e5e7eb' }}>
+                          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: s.color, wordBreak: 'break-all' }}>{s.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <button
+                        onClick={async () => {
+                          setApiStatus('checking');
+                          try {
+                            await api.get('/');
+                            setApiStatus('ok');
+                          } catch {
+                            setApiStatus('error');
+                          }
+                        }}
+                        style={{ background: 'var(--primary)', color: 'white', padding: '9px 20px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {apiStatus === 'checking' ? '⏳ Đang kiểm tra...' : '🔄 Test kết nối backend'}
+                      </button>
+                      {apiStatus === 'ok' && <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 13 }}>✅ Backend hoạt động tốt!</span>}
+                      {apiStatus === 'error' && <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>❌ Không kết nối được backend</span>}
+                    </div>
+                  </div>
+
+                  {/* Stats summary */}
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>📊 Tóm tắt dữ liệu</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                      {[
+                        { label: 'Tổng Ebook', val: ebooks.length, bg: '#f0faf5', color: 'var(--primary)' },
+                        { label: 'Đơn hàng', val: orders.length, bg: '#eff6ff', color: '#2563eb' },
+                        { label: 'Ngườọi dùng', val: users.length, bg: '#fdf4ff', color: '#7c3aed' },
+                        { label: 'Danh mục', val: categories.length, bg: '#fffbeb', color: '#d97706' },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: s.bg, borderRadius: 8, padding: '14px', textAlign: 'center', border: '1px solid #e5e7eb' }}>
+                          <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.val}</div>
+                          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '14px 18px', fontSize: 13, color: '#92400e' }}>
+                    ⚠️ Cài đặt nâng cao (Cloudinary, email SMTP, thanh toán) được quản lý qua biến môi trường trên server (Render). Liên hệ kỹ thuật để thay đổi.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===== PROMOTIONS TAB ===== */}
+            {tab === 'promotions' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 800 }}>Mã giảm giá <span style={{ fontSize: 14, fontWeight: 400, color: '#6b7280' }}>({promos.length} mã)</span></h1>
+                  <button onClick={() => setShowPromoForm(true)}
+                    style={{ background: 'var(--primary)', color: 'white', padding: '9px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
+                    <FaPlusCircle size={13} /> Tạo mã mới
+                  </button>
+                </div>
+
+
+                {/* Create form */}
+                {showPromoForm && (
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Tạo mã mới</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Mã giảm giá *</label>
+                        <input value={promoForm.code} onChange={e => setPromoForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                          placeholder="VD: SUMMER30" style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', outline: 'none', textTransform: 'uppercase' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Loại giảm</label>
+                        <select value={promoForm.type} onChange={e => setPromoForm(p => ({ ...p, type: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', background: 'white' }}>
+                          <option value="percent">% phần trăm</option>
+                          <option value="fixed">Số tiền cố định</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Giá trị giảm *</label>
+                        <input type="number" value={promoForm.discount} onChange={e => setPromoForm(p => ({ ...p, discount: e.target.value }))}
+                          placeholder={promoForm.type === 'percent' ? '15 (%)'  : '30000 (đ)'} style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Hóa đơn tối thiểu (đ)</label>
+                        <input type="number" value={promoForm.minOrder} onChange={e => setPromoForm(p => ({ ...p, minOrder: e.target.value }))}
+                          placeholder="0" style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Ngày hết hạn</label>
+                        <input type="date" value={promoForm.expiry} onChange={e => setPromoForm(p => ({ ...p, expiry: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={promoForm.active} onChange={e => setPromoForm(p => ({ ...p, active: e.target.checked }))} />
+                          Kích hoạt ngay
+                        </label>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button type="button" onClick={() => setShowPromoForm(false)}
+                        style={{ padding: '9px 20px', border: '1.5px solid #e5e7eb', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: 'white' }}>Hủy</button>
+                      <button type="button" onClick={handleCreatePromo} disabled={promoSaving}
+                        style={{ padding: '9px 20px', background: 'var(--primary)', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: promoSaving ? 0.7 : 1 }}>
+                        <FaCheck size={12} /> {promoSaving ? 'Đang tạo...' : 'Tạo mã'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Promo table */}
+                <div style={{ background: 'white', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead><tr>{['Mã', 'Loại giảm', 'Giá trị', 'Đơn tối thiểu', 'Hết hạn', 'Trạng thái', 'Thao tác'].map(h => <TH key={h} c={h} />)}</tr></thead>
+                    <tbody>
+                      {promos.map((p, i) => {
+                        const expired = p.expiry && new Date(p.expiry) < new Date();
+                        return (
+                          <tr key={p._id || p.id} style={{ background: i % 2 ? '#fafafa' : 'white' }}>
+                            <TD>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 13, background: '#f3f4f6', padding: '3px 8px', borderRadius: 5 }}>{p.code}</span>
+                                <button onClick={() => { navigator.clipboard.writeText(p.code); setCopiedPromo(p._id || p.id); setTimeout(() => setCopiedPromo(null), 1500); }}
+                                  style={{ background: 'none', color: copiedPromo === (p._id || p.id) ? '#16a34a' : '#9ca3af', fontSize: 11, cursor: 'pointer', padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4 }}>
+                                  {copiedPromo === (p._id || p.id) ? '✓' : 'Copy'}
+                                </button>
+                              </div>
+                            </TD>
+                            <TD>{p.type === 'percent' ? 'Phần trăm' : 'Cố định'}</TD>
+                            <TD s={{ fontWeight: 700, color: 'var(--primary)' }}>
+                              {p.type === 'percent' ? `-${p.discount}%` : `-${Number(p.discount).toLocaleString('vi-VN')}đ`}
+                            </TD>
+                            <TD>{p.minOrder ? `${Number(p.minOrder).toLocaleString('vi-VN')}đ` : 'Không giới hạn'}</TD>
+                            <TD s={{ color: expired ? '#dc2626' : '#6b7280' }}>{p.expiry || '—'}</TD>
+                            <TD>
+                              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: p.active && !expired ? '#dcfce7' : '#fee2e2', color: p.active && !expired ? '#16a34a' : '#dc2626' }}>
+                                {expired ? 'Hết hạn' : p.active ? 'Hoạt động' : 'Tắt'}
+                              </span>
+                            </TD>
+                            <TD>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={() => handleTogglePromo(p)}
+                                  style={{ background: p.active ? '#fef3c7' : '#dcfce7', color: p.active ? '#92400e' : '#16a34a', padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                                  {p.active ? 'Tắt' : 'Bật'}
+                                </button>
+                                <button onClick={() => handleDeletePromo(p)}
+                                  style={{ background: '#fee2e2', color: '#dc2626', padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <FaTrash size={9} /> Xóa
+                                </button>
+                              </div>
+                            </TD>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {promos.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Chưa có mã giảm giá nào</div>}
+                </div>
+              </div>
+            )}
+
             {tab === 'add' && (
               <div style={{ maxWidth: 640 }}>
                 <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>Thêm E-book mới</h1>
@@ -635,8 +882,37 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
-                    <button type="submit" disabled={saving || uploading} style={{ width: '100%', padding: 12, background: 'var(--primary)', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.8 : 1 }}>
-                      {uploading ? '☁️ Đang upload ảnh...' : saving ? '⏳ Đang tạo...' : <><FaCheck /> Tạo E-book</>}
+                    {/* ===== PDF UPLOAD ===== */}
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                        📄 File PDF Ebook
+                        <span style={{ fontSize: 11, fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>(Chỉ seller và người đã mua mới xem được)</span>
+                      </label>
+                      {!pdfFile ? (
+                        <div onClick={() => pdfInputRef.current?.click()}
+                          style={{ border: '2px dashed #e5e7eb', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', background: '#f9fafb' }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                          <div style={{ fontSize: 28, marginBottom: 6 }}>📄</div>
+                          <div style={{ fontSize: 13, color: '#6b7280' }}>Click để chọn file PDF</div>
+                          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Tối đa 20MB • Chỉ file .pdf</div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#fffbeb', border: '1.5px solid #fbbf24', borderRadius: 8 }}>
+                          <span style={{ fontSize: 20 }}>📄</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{pdfFile.name}</div>
+                            <div style={{ fontSize: 11, color: '#9ca3af' }}>{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                          </div>
+                          <button type="button" onClick={() => setPdfFile(null)}
+                            style={{ background: '#fee2e2', color: '#dc2626', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>✕ Xóa</button>
+                        </div>
+                      )}
+                      <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
+                        onChange={e => { if (e.target.files[0]) setPdfFile(e.target.files[0]); }} />
+                    </div>
+                    <button type="submit" disabled={saving || uploading || pdfUploading} style={{ width: '100%', padding: 12, background: 'var(--primary)', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.8 : 1 }}>
+                      {pdfUploading ? '📤 Đang upload PDF...' : uploading ? '☁️ Đang upload ảnh...' : saving ? '⏳ Đang tạo...' : <><FaCheck /> Tạo E-book</>}
                     </button>
                   </form>
                 </div>

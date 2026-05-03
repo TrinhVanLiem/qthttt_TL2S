@@ -1,30 +1,31 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaHome, FaBook, FaThLarge, FaBoxOpen, FaUsers, FaStar, FaTag, FaFileAlt, FaImage, FaFileCode, FaLock, FaCog, FaList, FaSignOutAlt, FaCompass, FaHandshake, FaClock } from 'react-icons/fa';
+import {
+  FaHome, FaBook, FaThLarge, FaBoxOpen, FaUsers, FaStar,
+  FaTag, FaCog, FaSignOutAlt, FaCompass, FaHandshake, FaClock
+} from 'react-icons/fa';
 
 const getSections = (badges = {}) => [
-  { title: 'QUẢN LÝ', items: [
-    { key: 'dashboard',     label: 'Tổng quan',           icon: <FaHome /> },
-    { key: 'ebooks',        label: 'Guide (Sản phẩm)',    icon: <FaBook /> },
-    { key: 'categories',    label: 'Danh mục',             icon: <FaThLarge /> },
-    { key: 'orders',        label: 'Đơn hàng',            icon: <FaBoxOpen /> },
-    { key: 'customers',     label: 'Khách hàng',          icon: <FaUsers /> },
-    { key: 'reviews',       label: 'Đánh giá',            icon: <FaStar /> },
-    { key: 'promotions',    label: 'Ưu đãi / Mã giảm giá', icon: <FaTag /> },
-    { key: 'partner-apps',  label: 'Đơn đối tác',         icon: <FaHandshake />, badge: badges.partnerApps },
-    { key: 'pending-ebooks',label: 'Ebook chờ duyệt',     icon: <FaClock />,     badge: badges.pendingEbooks },
-  ]},
-  { title: 'NỘI DUNG', items: [
-    { key: 'blog',    label: 'Bài viết blog',   icon: <FaFileAlt /> },
-    { key: 'banners', label: 'Slider / Banner', icon: <FaImage /> },
-    { key: 'pages',   label: 'Trang tĩnh',      icon: <FaFileCode /> },
-  ]},
-  { title: 'QUẢN TRỊ HỆ THỐNG', items: [
-    { key: 'users',    label: 'Người dùng',        icon: <FaUsers /> },
-    { key: 'roles',    label: 'Phân quyền',        icon: <FaLock /> },
-    { key: 'settings', label: 'Cài đặt hệ thống', icon: <FaCog /> },
-    { key: 'logs',     label: 'Nhật ký hoạt động', icon: <FaList /> },
-  ]},
+  {
+    title: 'QUẢN LÝ',
+    items: [
+      { key: 'dashboard',      label: 'Tổng quan',         icon: <FaHome /> },
+      { key: 'ebooks',         label: 'Guide (Sản phẩm)',  icon: <FaBook /> },
+      { key: 'categories',     label: 'Danh mục',           icon: <FaThLarge /> },
+      { key: 'orders',         label: 'Đơn hàng',          icon: <FaBoxOpen /> },
+      { key: 'users',          label: 'Khách hàng',        icon: <FaUsers /> },
+      { key: 'reviews',        label: 'Đánh giá',          icon: <FaStar /> },
+      { key: 'partner-apps',   label: 'Đơn đối tác',      icon: <FaHandshake />, badge: badges.partnerApps },
+      { key: 'pending-ebooks', label: 'Ebook chờ duyệt',  icon: <FaClock />,     badge: badges.pendingEbooks },
+    ],
+  },
+  {
+    title: 'HỆ THỐNG',
+    items: [
+      { key: 'promotions', label: 'Mã giảm giá', icon: <FaTag /> },
+      { key: 'settings',   label: 'Cài đặt',     icon: <FaCog /> },
+    ],
+  },
 ];
 
 export default function AdminSidebar({ tab, setTab, badges = {} }) {
@@ -50,7 +51,9 @@ export default function AdminSidebar({ tab, setTab, badges = {} }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
         {SECTIONS.map(sec => (
           <div key={sec.title} style={{ marginBottom: 4 }}>
-            <div style={{ padding: '8px 20px 4px', fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, textTransform: 'uppercase' }}>{sec.title}</div>
+            <div style={{ padding: '8px 20px 4px', fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: 1, textTransform: 'uppercase' }}>
+              {sec.title}
+            </div>
             {sec.items.map(item => {
               const active = tab === item.key;
               return (
@@ -59,7 +62,9 @@ export default function AdminSidebar({ tab, setTab, badges = {} }) {
                   <span style={{ color: active ? 'var(--primary)' : '#9ca3af', fontSize: 13 }}>{item.icon}</span>
                   {item.label}
                   {item.badge > 0 && (
-                    <span style={{ position: 'absolute', right: 14, background: '#ef4444', color: 'white', fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{item.badge}</span>
+                    <span style={{ position: 'absolute', right: 14, background: '#ef4444', color: 'white', fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                      {item.badge}
+                    </span>
                   )}
                 </button>
               );
@@ -80,7 +85,6 @@ export default function AdminSidebar({ tab, setTab, badges = {} }) {
         </button>
       </div>
 
-      {/* Version */}
       <div style={{ padding: '8px 20px', fontSize: 11, color: '#9ca3af', borderTop: '1px solid #e5e7eb' }}>Phiên bản 1.0.0</div>
     </aside>
   );

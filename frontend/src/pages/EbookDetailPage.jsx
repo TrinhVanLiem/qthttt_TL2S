@@ -28,6 +28,7 @@ export default function EbookDetailPage({ onAddToCart }) {
   const [review, setReview] = useState({ rating: 5, comment: '' });
   const [submitting, setSubmitting] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -46,6 +47,24 @@ export default function EbookDetailPage({ onAddToCart }) {
       setEbook(data); setReview({ rating: 5, comment: '' });
     } catch (err) { alert(err.response?.data?.message || 'Lỗi gửi đánh giá'); }
     finally { setSubmitting(false); }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!user) return navigate('/login');
+    setSaving(true);
+    try {
+      const { data } = await api.get(`/ebooks/${ebook._id}/pdf`);
+      window.open(data.url, '_blank');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Bạn cần mua ebook này để xem PDF');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBuy = () => {
+    if (!user) return navigate('/login');
+    alert('Vui lòng thêm vào giỏ hàng và thanh toán!');
   };
 
   if (loading) return <><TopBar /><Navbar /><Spinner /><Footer /></>;
@@ -268,9 +287,23 @@ export default function EbookDetailPage({ onAddToCart }) {
                   <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--text-gray)', alignItems: 'center' }}>{t}</div>
                 ))}
               </div>
-              <button className="btn-primary-full" style={{ marginBottom: 10, fontSize: 16, fontWeight: 800 }} onClick={() => { if (!user) navigate('/login'); else alert('Thanh toán thành công!'); }}>
+              <button
+                className="btn-primary-full"
+                style={{ marginBottom: 10, fontSize: 16, fontWeight: 800 }}
+                onClick={handleBuy}
+              >
                 Mua ngay
               </button>
+              {ebook.fileUrl && (
+                <button
+                  className="btn-primary-full"
+                  style={{ marginBottom: 10, fontSize: 15, fontWeight: 700, background: '#374151' }}
+                  onClick={handleDownloadPdf}
+                  disabled={saving}
+                >
+                  {saving ? '⏳ Đang tải...' : '📥 Tải PDF (cần mua)'}
+                </button>
+              )}
               <button className="btn-outline" style={{ width: '100%', marginBottom: 10, padding: 11 }} onClick={() => onAddToCart?.(ebook)}>
                 Thêm vào giỏ hàng
               </button>

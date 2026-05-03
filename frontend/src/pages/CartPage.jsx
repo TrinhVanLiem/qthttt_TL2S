@@ -11,6 +11,9 @@ export default function CartPage({ cart, setCart, removeFromCart }) {
   const [loading, setLoading] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discountAmount, message }
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
   const [related, setRelated] = useState([]);
   const [qty, setQty] = useState({});
 
@@ -26,9 +29,25 @@ export default function CartPage({ cart, setCart, removeFromCart }) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * (qty[item._id] || 1), 0);
   const total = subtotal - discount;
 
-  const applyCoupon = () => {
-    if (coupon.toUpperCase() === 'TRAVEL10') { setDiscount(Math.round(subtotal * 0.1)); alert('Áp dụng mã giảm 10% thành công!'); }
-    else alert('Mã giảm giá không hợp lệ');
+  const applyCoupon = async () => {
+    if (!coupon.trim()) return;
+    if (!user) { alert('Vui lòng đăng nhập để dùng mã giảm giá'); return; }
+    setCouponLoading(true); setCouponError('');
+    try {
+      const { data } = await api.post('/coupons/validate', {
+        code: coupon.trim(),
+        orderTotal: subtotal,
+      });
+      setDiscount(data.discountAmount);
+      setAppliedCoupon(data);
+    } catch (err) {
+      setCouponError(err.response?.data?.message || 'Mã không hợp lệ');
+      setDiscount(0); setAppliedCoupon(null);
+    } finally { setCouponLoading(false); }
+  };
+
+  const removeCoupon = () => {
+    setCoupon(''); setDiscount(0); setAppliedCoupon(null); setCouponError('');
   };
 
   const handleCheckout = () => {
@@ -165,10 +184,30 @@ export default function CartPage({ cart, setCart, removeFromCart }) {
                 )}
 
                 {/* Coupon */}
-                <div style={{ display: 'flex', gap: 8, margin: '14px 0' }}>
-                  <input value={coupon} onChange={e => setCoupon(e.target.value)} placeholder="Nhập mã giảm giá"
-                    style={{ flex: 1, padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 6, fontSize: 13, outline: 'none' }} />
-                  <button onClick={applyCoupon} style={{ padding: '9px 14px', background: 'var(--primary)', color: 'white', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Áp dụng</button>
+                <div style={{ margin: '14px 0' }}>
+                  {appliedCoupon ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0faf5', border: '1px solid #a7f3d0', borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 13 }}>
+                        <span style={{ fontWeight: 700, color: '#065f46' }}>🎟️ {appliedCoupon.code}</span>
+                        <span style={{ color: '#6b7280', marginLeft: 8 }}>{appliedCoupon.message}</span>
+                      </div>
+                      <button onClick={removeCoupon} style={{ color: '#9ca3af', background: 'none', fontSize: 16, cursor: 'pointer', padding: 4 }}>×</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input value={coupon} onChange={e => { setCoupon(e.target.value); setCouponError(''); }}
+                          onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+                          placeholder="Nhập mã giảm giá"
+                          style={{ flex: 1, padding: '9px 12px', border: `1.5px solid ${couponError ? '#ef4444' : 'var(--border)'}`, borderRadius: 6, fontSize: 13, outline: 'none', textTransform: 'uppercase' }} />
+                        <button onClick={applyCoupon} disabled={couponLoading || !coupon.trim()}
+                          style={{ padding: '9px 14px', background: 'var(--primary)', color: 'white', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: couponLoading || !coupon.trim() ? 0.7 : 1 }}>
+                          {couponLoading ? '...' : 'Áp dụng'}
+                        </button>
+                      </div>
+                      {couponError && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 5 }}>{couponError}</div>}
+                    </>
+                  )}
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 16 }}>

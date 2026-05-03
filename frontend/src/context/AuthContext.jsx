@@ -39,6 +39,13 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Cập nhật thông tin user (tên, avatar...) sau khi PUT /api/users/me
+  const updateUser = (updatedFields) => {
+    const merged = { ...user, ...updatedFields };
+    localStorage.setItem('user', JSON.stringify(merged));
+    setUser(merged);
+  };
+
   // Dùng sau OAuth redirect — nhận user object kèm token
   const loginWithToken = (userData) => {
     localStorage.setItem('token', userData.token);
@@ -47,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loginWithToken, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loginWithToken, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

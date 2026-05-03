@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TopBar, Navbar, Footer } from '../components/Layout';
 import {
   FaStore, FaPlusCircle, FaBook, FaChartBar, FaClock,
-  FaCheckCircle, FaTimesCircle, FaHome, FaStar, FaCommentAlt
+  FaCheckCircle, FaTimesCircle, FaHome, FaStar, FaCommentAlt, FaCloudUploadAlt, FaTimes
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -35,6 +35,13 @@ export default function PartnerDashboardPage() {
     title: '', description: '', price: '', category: 'mien-trung',
     location: '', duration: '', tags: '', badge: '',
   });
+  // Upload state
+  const [imgFiles, setImgFiles] = useState([]);
+  const [imgPreviews, setImgPreviews] = useState([]);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const imgInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -54,16 +61,38 @@ export default function PartnerDashboardPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      setUploading(true);
+      // Upload ảnh nếu có
+      let images = [], thumbnail = '';
+      if (imgFiles.length > 0) {
+        const fd = new FormData();
+        imgFiles.forEach(f => fd.append('images', f));
+        const { data: up } = await api.post('/upload/images', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        images = up.images;
+        thumbnail = images[0]?.url || '';
+      }
+      // Upload PDF nếu có
+      let fileUrl = '';
+      if (pdfFile) {
+        const fd = new FormData(); fd.append('pdf', pdfFile);
+        const { data: pdfData } = await api.post('/upload/pdf', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        fileUrl = pdfData.url;
+      }
+      setUploading(false);
+
       const { data } = await api.post('/partner/ebooks', {
         ...form,
         price: Number(form.price),
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+        images, thumbnail, fileUrl,
       });
       setEbooks(prev => [data, ...prev]);
       setShowForm(false);
       setForm({ title: '', description: '', price: '', category: 'mien-trung', location: '', duration: '', tags: '', badge: '' });
+      setImgFiles([]); setImgPreviews([]); setPdfFile(null);
       alert('✅ Ebook đã nộp lên Admin để xét duyệt!');
     } catch (err) {
+      setUploading(false);
       alert(err.response?.data?.message || 'Lỗi tạo ebook');
     } finally {
       setSaving(false);
@@ -313,6 +342,73 @@ export default function PartnerDashboardPage() {
                   style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e5e7eb', borderRadius: 8, fontSize: 14, minHeight: 120, resize: 'vertical', outline: 'none', fontFamily: 'inherit' }} />
               </div>
 
+              {/* ===== UPLOAD ẢNH ===== */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  <FaCloudUploadAlt style={{ marginRight: 5 }} /> Hình ảnh ebook (tối đa 5 ảnh)
+                </label>
+                {imgPreviews.length < 5 && (
+                  <div onClick={() => imgInputRef.current?.click()}
+                    style={{ border: '2px dashed #e5e7eb', borderRadius: 10, padding: 16, textAlign: 'center', cursor: 'pointer', background: '#f9fafb' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                    <FaCloudUploadAlt size={24} color="#9ca3af" style={{ marginBottom: 4 }} />
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Click chọn ảnh (JPG, PNG)</div>
+                  </div>
+                )}
+                <input ref={imgInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+                  onChange={e => {
+                    const files = [...imgFiles, ...Array.from(e.target.files)].slice(0, 5);
+                    setImgFiles(files);
+                    setImgPreviews(files.map(f => URL.createObjectURL(f)));
+                  }} />
+                {imgPreviews.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6, marginTop: 8 }}>
+                    {imgPreviews.map((src, i) => (
+                      <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: 6, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                        <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {i === 0 && <span style={{ position: 'absolute', top: 2, left: 2, background: 'var(--primary)', color: 'white', fontSize: 8, fontWeight: 700, padding: '1px 4px', borderRadius: 3 }}>Ảnh bìa</span>}
+                        <button type="button" onClick={() => {
+                          const nf = imgFiles.filter((_, j) => j !== i);
+                          setImgFiles(nf); setImgPreviews(nf.map(f => URL.createObjectURL(f)));
+                        }} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', width: 16, height: 16, cursor: 'pointer', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <FaTimes size={7} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ===== UPLOAD PDF ===== */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  📄 File PDF Ebook *
+                  <span style={{ fontSize: 11, fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>(Chỉ người mua mới xem được)</span>
+                </label>
+                {!pdfFile ? (
+                  <div onClick={() => pdfInputRef.current?.click()}
+                    style={{ border: '2px dashed #e5e7eb', borderRadius: 10, padding: 16, textAlign: 'center', cursor: 'pointer', background: '#f9fafb' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                    <div style={{ fontSize: 24, marginBottom: 4 }}>📄</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Click chọn file PDF (tối đa 20MB)</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#fffbeb', border: '1.5px solid #fbbf24', borderRadius: 8 }}>
+                    <span style={{ fontSize: 18 }}>📄</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 12 }}>{pdfFile.name}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{(pdfFile.size/1024/1024).toFixed(2)} MB</div>
+                    </div>
+                    <button type="button" onClick={() => setPdfFile(null)}
+                      style={{ background: '#fee2e2', color: '#dc2626', padding: '3px 7px', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                  </div>
+                )}
+                <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }}
+                  onChange={e => { if (e.target.files[0]) setPdfFile(e.target.files[0]); }} />
+              </div>
+
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#92400e' }}>
                 📋 Sau khi nộp, ebook sẽ ở trạng thái <strong>Chờ duyệt</strong>. Admin sẽ xem xét và thông báo qua email.
               </div>
@@ -322,9 +418,9 @@ export default function PartnerDashboardPage() {
                   style={{ flex: 1, padding: 12, border: '1.5px solid #e5e7eb', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', background: 'white' }}>
                   Hủy
                 </button>
-                <button type="submit" disabled={saving}
+                <button type="submit" disabled={saving || uploading}
                   style={{ flex: 2, padding: 12, background: 'var(--primary)', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  {saving ? '⏳ Đang nộp...' : <><FaPlusCircle size={13} /> Nộp ebook</>}
+                  {uploading ? '☁️ Đang upload...' : saving ? '⏳ Đang nộp...' : <><FaPlusCircle size={13} /> Nộp ebook</>}
                 </button>
               </div>
             </form>
