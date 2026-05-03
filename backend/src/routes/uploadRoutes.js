@@ -15,8 +15,8 @@ const uploadPdf = multer({
   },
 });
 
-// POST /api/upload/images — Upload tối đa 5 ảnh (Admin only)
-router.post('/images', protect, adminOnly, upload.array('images', 5), async (req, res) => {
+// POST /api/upload/images — Upload tối đa 5 ảnh (Admin + Partner)
+router.post('/images', protect, upload.array('images', 5), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'Không có file nào được upload' });

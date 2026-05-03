@@ -10,19 +10,22 @@ const {
   getAllReviews,
   deleteReview,
   getMyEbookReviews,
+  getPdfAccess,
 } = require('../controllers/ebookController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // Public routes
 router.get('/', getEbooks);
-router.get('/:id', getEbookById);
 
-// Private routes
+// Private routes — phải đặt TRƯỚC /:id để tránh conflict
+router.get('/partner/my-reviews', protect, getMyEbookReviews);
+router.get('/admin/reviews', protect, adminOnly, getAllReviews);
+
+router.get('/:id', getEbookById);
 router.post('/:id/reviews', protect, addReview);
-router.get('/partner/my-reviews', protect, getMyEbookReviews); // Partner xem reviews ebook của mình
+router.get('/:id/pdf', protect, getPdfAccess); // 🔒 Chỉ seller/admin/người đã mua
 
 // Admin routes
-router.get('/admin/reviews', protect, adminOnly, getAllReviews);
 router.delete('/admin/reviews/:id', protect, adminOnly, deleteReview);
 router.post('/', protect, adminOnly, createEbook);
 router.put('/:id', protect, adminOnly, updateEbook);

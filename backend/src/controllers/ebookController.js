@@ -178,7 +178,36 @@ const getMyEbookReviews = async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
+// @route   GET /api/ebooks/:id/pdf
+// @desc    Trả về URL PDF — chỉ cho seller, admin, và người đã mua
+// @access  Private
+const getPdfAccess = async (req, res) => {
+  try {
+    const Order = require('../models/Order');
+    const ebook = await Ebook.findById(req.params.id);
+    if (!ebook) return res.status(404).json({ message: 'Không tìm thấy ebook' });
+    if (!ebook.fileUrl) return res.status(404).json({ message: 'Ebook này chưa có file PDF' });
+
+    const userId = req.user._id.toString();
+    const isAdmin  = req.user.role === 'admin';
+    const isSeller = ebook.seller.toString() === userId;
+
+    // Kiểm tra đã mua chưa
+    const hasPurchased = await Order.findOne({
+      user: req.user._id,
+      'items.ebook': ebook._id,
+      status: { $in: ['paid', 'completed'] },
+    });
+
+    if (!isAdmin && !isSeller && !hasPurchased) {
+      return res.status(403).json({ message: 'Bạn cần mua ebook này để xem PDF' });
+    }
+
+    res.json({ url: ebook.fileUrl });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+};
+
 module.exports = {
   getEbooks, getEbookById, createEbook, updateEbook, deleteEbook, addReview,
-  getAllReviews, deleteReview, getMyEbookReviews,
+  getAllReviews, deleteReview, getMyEbookReviews, getPdfAccess,
 };

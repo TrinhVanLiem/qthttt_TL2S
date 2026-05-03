@@ -13,6 +13,7 @@ const userRoutes = require('./src/routes/userRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const partnerRoutes = require('./src/routes/partnerRoutes');
 const categoryRoutes = require('./src/routes/categoryRoutes');
+const couponRoutes = require('./src/routes/couponRoutes');
 
 // Kết nối Database
 connectDB();
@@ -50,6 +51,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/partner', partnerRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/coupons', couponRoutes);
 
 // Route kiểm tra server chạy
 app.get('/', (req, res) => {
