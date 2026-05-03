@@ -1,10 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaBook, FaBoxOpen, FaUsers, FaPlusCircle, FaStar, FaTrash, FaCheck, FaShieldAlt, FaCloudUploadAlt, FaTimes, FaImages, FaEdit, FaHandshake, FaClock, FaDownload, FaEye } from 'react-icons/fa';
+import { FaBook, FaBoxOpen, FaUsers, FaPlusCircle, FaStar, FaTrash, FaCheck, FaShieldAlt, FaCloudUploadAlt, FaTimes, FaImages, FaEdit, FaHandshake, FaClock, FaDownload, FaEye, FaMountain, FaMapMarkedAlt, FaMap, FaTree, FaUmbrellaBeach, FaPlane, FaGlobe, FaFolder } from 'react-icons/fa';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminHeader from '../components/AdminHeader';
 import AdminDashboard from '../components/AdminDashboard';
 import { Spinner } from '../components/Layout';
 import api from '../api/axios';
+
+const IconMap = {
+  FaMountain: <FaMountain />,
+  FaMapMarkedAlt: <FaMapMarkedAlt />,
+  FaMap: <FaMap />,
+  FaTree: <FaTree />,
+  FaUmbrellaBeach: <FaUmbrellaBeach />,
+  FaPlane: <FaPlane />,
+  FaGlobe: <FaGlobe />,
+  FaFolder: <FaFolder />,
+};
 
 const TH = ({ c }) => <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6b7280', background: '#f9fafb' }}>{c}</th>;
 const TD = ({ children, s = {} }) => <td style={{ padding: '13px 14px', fontSize: 13, borderTop: '1px solid #f3f4f6', ...s }}>{children}</td>;
@@ -204,7 +215,7 @@ export default function AdminPage() {
                   <h1 style={{ fontSize: 22, fontWeight: 800 }}>
                     Danh mục <span style={{ fontSize: 14, fontWeight: 400, color: '#6b7280' }}>({categories.length})</span>
                   </h1>
-                  <button onClick={() => { setCatForm({ name: '', slug: '', description: '', icon: '📁', color: '#1B6B4A', order: 0 }); setCatModal('add'); }}
+                  <button onClick={() => { setCatForm({ name: '', slug: '', description: '', icon: 'FaFolder', color: '#1B6B4A', order: 0 }); setCatModal('add'); }}
                     style={{ background: 'var(--primary)', color: 'white', padding: '9px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
                     <FaPlusCircle size={13} /> Thêm danh mục
                   </button>
@@ -218,8 +229,8 @@ export default function AdminPage() {
                         <tr key={cat._id} style={{ background: i % 2 ? '#fafafa' : 'white' }}>
                           <TD s={{ color: '#9ca3af', width: 36 }}>{i + 1}</TD>
                           <TD>
-                            <div style={{ width: 36, height: 36, borderRadius: 8, background: cat.color + '20', border: `1.5px solid ${cat.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                              {cat.icon}
+                            <div style={{ width: 36, height: 36, borderRadius: 8, background: cat.color + '20', border: `1.5px solid ${cat.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: cat.color }}>
+                              {IconMap[cat.icon] || <FaFolder />}
                             </div>
                           </TD>
                           <TD s={{ fontWeight: 600 }}>{cat.name}</TD>
@@ -281,7 +292,9 @@ export default function AdminPage() {
 
                         {/* Preview */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#f8fafb', borderRadius: 10, border: '1px solid #e5e7eb' }}>
-                          <div style={{ width: 44, height: 44, borderRadius: 10, background: catForm.color + '20', border: `2px solid ${catForm.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{catForm.icon}</div>
+                          <div style={{ width: 44, height: 44, borderRadius: 10, background: catForm.color + '20', border: `2px solid ${catForm.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: catForm.color }}>
+                            {IconMap[catForm.icon] || <FaFolder />}
+                          </div>
                           <div>
                             <div style={{ fontWeight: 700, fontSize: 14 }}>{catForm.name || 'Tên danh mục'}</div>
                             <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#9ca3af' }}>{catForm.slug || 'slug-danh-muc'}</div>
@@ -323,9 +336,13 @@ export default function AdminPage() {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12 }}>
                           <div>
-                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Icon (emoji)</label>
-                            <input value={catForm.icon} onChange={e => setCatForm(f => ({ ...f, icon: e.target.value }))}
-                              style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 18, textAlign: 'center', outline: 'none' }} maxLength={4} />
+                            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Icon</label>
+                            <select value={catForm.icon} onChange={e => setCatForm(f => ({ ...f, icon: e.target.value }))}
+                              style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', fontFamily: 'inherit', background: 'white' }}>
+                              {Object.keys(IconMap).map(iconName => (
+                                <option key={iconName} value={iconName}>{iconName}</option>
+                              ))}
+                            </select>
                           </div>
                           <div>
                             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Màu sắc</label>

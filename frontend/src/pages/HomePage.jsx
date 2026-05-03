@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TopBar, Navbar, Footer, EbookCard, Spinner } from '../components/Layout';
-import { FaMapMarkedAlt, FaGlobe, FaHeart, FaWallet, FaUserAlt, FaFire, FaMapMarkerAlt, FaPlane } from 'react-icons/fa';
+import { FaMapMarkedAlt, FaGlobe, FaHeart, FaWallet, FaUserAlt, FaFire, FaMapMarkerAlt, FaPlane, FaMountain, FaMap, FaTree, FaUmbrellaBeach, FaFolder } from 'react-icons/fa';
 import { BsFileText, BsArrowRepeat, BsCashCoin, BsDownload, BsHeadset, BsImage } from 'react-icons/bs';
 import api from '../api/axios';
+
+const IconMap = {
+  FaMountain: <FaMountain />,
+  FaMapMarkedAlt: <FaMapMarkedAlt />,
+  FaMap: <FaMap />,
+  FaTree: <FaTree />,
+  FaUmbrellaBeach: <FaUmbrellaBeach />,
+  FaPlane: <FaPlane />,
+  FaGlobe: <FaGlobe />,
+  FaFolder: <FaFolder />,
+};
 
 // ===== HƯỚNG DẪN ĐẶT ẢNH HERO =====
 // Đặt 3 file ảnh vào thư mục: frontend/public/
@@ -13,13 +24,6 @@ import api from '../api/axios';
 //   hero-hagiang.jpg → ảnh Hà Giang
 // ======================================
 
-const CATEGORIES = [
-  { icon: <FaMapMarkedAlt />, label: 'Guide trong nước', sub: 'Khám phá Việt Nam', value: 'trong-nuoc' },
-  { icon: <FaGlobe />, label: 'Guide nước ngoài', sub: 'Khám phá thế giới', value: 'nuoc-ngoai' },
-  { icon: <FaHeart />, label: 'Guide cặp đôi', sub: 'Lãng mạn, chill', value: 'cap-doi' },
-  { icon: <FaWallet />, label: 'Guide tiết kiệm', sub: 'Đi nhiều – tốn ít', value: 'tiet-kiem' },
-  { icon: <FaUserAlt />, label: 'Solo trip', sub: 'Dành cho bạn', value: 'solo' },
-];
 
 const SAMPLE_EBOOKS = [
   { _id: 's1', title: 'Guide Đà Lạt 3N2Đ Tự túc chi tiết', price: 79000, location: 'Đà Lạt', badge: 'hot' },
@@ -40,10 +44,18 @@ const TESTIMONIALS = [
 export default function HomePage({ onAddToCart }) {
   const navigate = useNavigate();
   const [ebooks, setEbooks] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/ebooks').then(r => setEbooks(r.data)).catch(() => setEbooks([])).finally(() => setLoading(false));
+    setLoading(true);
+    Promise.all([
+      api.get('/ebooks'),
+      api.get('/categories'),
+    ]).then(([ebRes, catRes]) => {
+      setEbooks(ebRes.data);
+      setCategories(catRes.data);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const displayBooks = ebooks.length > 0 ? ebooks : SAMPLE_EBOOKS;
@@ -66,7 +78,7 @@ export default function HomePage({ onAddToCart }) {
           <div className="hero-left">
             <h1>Khám phá du lịch<br />dễ dàng hơn với<br /><span>những guide chi tiết</span></h1>
             <p>Ebook du lịch tự túc chi tiết – cập nhật – dễ hiểu<br />Mua một lần – dùng mãi mãi!</p>
-            <button className="hero-btn" onClick={() => navigate('/ebooks')}>Khám phá ngay →</button>
+            <button className="hero-btn" onClick={() => navigate('/explore')}>Khám phá ngay →</button>
           </div>
         </div>
       </section>
@@ -74,12 +86,12 @@ export default function HomePage({ onAddToCart }) {
       {/* CATEGORY STRIP */}
       <div className="category-strip">
         <div className="inner">
-          {CATEGORIES.map(c => (
-            <div key={c.value} className="cat-item" onClick={() => navigate(`/ebooks?category=${c.value}`)}>
-              <span className="cat-icon">{c.icon}</span>
+          {categories.slice(0, 5).map(c => (
+            <div key={c.slug} className="cat-item" onClick={() => navigate(`/explore?category=${c.slug}`)}>
+              <span className="cat-icon" style={{ fontSize: 24 }}>{IconMap[c.icon] || <FaFolder />}</span>
               <div className="cat-text">
-                <span className="cat-label">{c.label}</span>
-                <span className="cat-sub">{c.sub}</span>
+                <span className="cat-label">{c.name}</span>
+                <span className="cat-sub">{c.description || 'Khám phá ngay'}</span>
               </div>
             </div>
           ))}
@@ -91,7 +103,7 @@ export default function HomePage({ onAddToCart }) {
         <div className="container">
           <div className="section-header">
             <h2 className="section-title"><FaFire color="#f4821e" /> Guide bán chạy</h2>
-            <a href="/ebooks" className="view-all">Xem tất cả →</a>
+            <a href="/explore" className="view-all">Xem tất cả →</a>
           </div>
           {loading ? <Spinner /> : (
             <div className="grid-6">

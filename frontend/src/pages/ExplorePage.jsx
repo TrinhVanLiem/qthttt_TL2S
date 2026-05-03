@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { TopBar, Navbar, Footer, Spinner } from '../components/Layout';
-import { FaSearch, FaStar, FaMapMarkerAlt, FaSlidersH, FaShoppingCart, FaChevronDown, FaChevronUp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaSearch, FaStar, FaMapMarkerAlt, FaSlidersH, FaShoppingCart, FaChevronDown, FaChevronUp, FaChevronLeft, FaChevronRight, FaMountain, FaMapMarkedAlt, FaMap, FaTree, FaUmbrellaBeach, FaPlane, FaGlobe, FaFolder } from 'react-icons/fa';
 import api from '../api/axios';
+
+const IconMap = {
+  FaMountain: <FaMountain />,
+  FaMapMarkedAlt: <FaMapMarkedAlt />,
+  FaMap: <FaMap />,
+  FaTree: <FaTree />,
+  FaUmbrellaBeach: <FaUmbrellaBeach />,
+  FaPlane: <FaPlane />,
+  FaGlobe: <FaGlobe />,
+  FaFolder: <FaFolder />,
+};
 
 
 
@@ -18,6 +29,7 @@ const PAGE_SIZE = 12;
 export default function ExplorePage({ onAddToCart }) {
   const navigate = useNavigate();
   const [ebooks, setEbooks] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
   const [sort, setSort] = useState('');
@@ -26,10 +38,24 @@ export default function ExplorePage({ onAddToCart }) {
   const [selected, setSelected] = useState({});
   const [budget, setBudget] = useState(10000000);
   const [email, setEmail] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || ''); // slug của category đang chọn
+
+  // Sync state when URL params change
+  useEffect(() => {
+    const cat = searchParams.get('category') || '';
+    setActiveCategory(cat);
+  }, [searchParams]);
 
   useEffect(() => {
     setLoading(true);
-    api.get('/ebooks').then(r => setEbooks(r.data)).catch(() => setEbooks([])).finally(() => setLoading(false));
+    Promise.all([
+      api.get('/ebooks'),
+      api.get('/categories'),
+    ]).then(([ebRes, catRes]) => {
+      setEbooks(ebRes.data);
+      setCategories(catRes.data);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const toggleCollapse = (key) => setCollapsed(c => ({ ...c, [key]: !c[key] }));
@@ -38,10 +64,12 @@ export default function ExplorePage({ onAddToCart }) {
   // Client-side filter + sort
   let filtered = [...ebooks];
   if (keyword) filtered = filtered.filter(e => e.title?.toLowerCase().includes(keyword.toLowerCase()) || e.location?.toLowerCase().includes(keyword.toLowerCase()));
+  if (activeCategory) filtered = filtered.filter(e => e.category === activeCategory);
   if (budget < 10000000) filtered = filtered.filter(e => e.price <= budget);
   if (sort === 'price-asc') filtered.sort((a, b) => a.price - b.price);
   else if (sort === 'price-desc') filtered.sort((a, b) => b.price - a.price);
   else if (sort === 'rating') filtered.sort((a, b) => (b.rating || 5) - (a.rating || 5));
+  else if (sort === 'best-seller') filtered.sort((a, b) => (b.sales || 0) - (a.sales || 0));
   else filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -112,27 +140,25 @@ export default function ExplorePage({ onAddToCart }) {
                 </div>
               </div>
 
-              {/* Collapsible filter sections */}
-              {FILTERS.map(f => (
-                <div key={f.key} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <button onClick={() => toggleCollapse(f.key)}
-                    style={{ width: '100%', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                    {f.label}
-                    {collapsed[f.key] ? <FaChevronDown size={11} /> : <FaChevronUp size={11} />}
+              {/* ===== Category chips ===== */}
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontWeight: 700, fontSize: 12, color: '#9ca3af', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Danh mục</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <button onClick={() => { setActiveCategory(''); setSearchParams({}); setPage(1); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: !activeCategory ? 'var(--primary)' : '#f3f4f6', color: !activeCategory ? 'white' : '#374151', fontSize: 13, fontWeight: !activeCategory ? 700 : 400, cursor: 'pointer', textAlign: 'left' }}>
+                    Tất cả danh mục
                   </button>
-                  {!collapsed[f.key] && (
-                    <div style={{ padding: '4px 16px 12px' }}>
-                      {f.options.map(opt => (
-                        <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', cursor: 'pointer', fontSize: 13 }}>
-                          <input type="radio" name={f.key} checked={(selected[f.key] || f.options[0]) === opt}
-                            onChange={() => setFilter(f.key, opt)} style={{ accentColor: 'var(--primary)' }} />
-                          <span style={{ color: (selected[f.key] || f.options[0]) === opt ? 'var(--primary)' : 'var(--text-dark)', fontWeight: (selected[f.key] || f.options[0]) === opt ? 700 : 400 }}>{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
+                  {categories.map(cat => (
+                    <button key={cat.slug} onClick={() => { setActiveCategory(cat.slug); setSearchParams({ category: cat.slug }); setPage(1); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: activeCategory === cat.slug ? cat.color : '#f3f4f6', color: activeCategory === cat.slug ? 'white' : '#374151', fontSize: 13, fontWeight: activeCategory === cat.slug ? 700 : 400, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                      <span style={{ fontSize: 15 }}>{IconMap[cat.icon] || <FaFolder />}</span> {cat.name}
+                      <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.75 }}>
+                        {ebooks.filter(e => e.category === cat.slug).length}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
 
               {/* Budget slider */}
               <div style={{ borderBottom: '1px solid var(--border)' }}>
