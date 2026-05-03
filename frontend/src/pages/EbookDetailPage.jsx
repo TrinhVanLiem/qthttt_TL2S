@@ -33,7 +33,17 @@ export default function EbookDetailPage({ onAddToCart }) {
   useEffect(() => {
     setLoading(true);
     Promise.all([api.get(`/ebooks/${id}`), api.get('/ebooks')])
-      .then(([r, all]) => { setEbook(r.data); setRelated(all.data.filter(e => e._id !== id).slice(0, 4)); })
+      .then(([r, all]) => {
+        const current = r.data;
+        setEbook(current);
+        // Lấy sản phẩm cùng category trước, sau đó mới lấy bất kỳ
+        const others = all.data.filter(e => e._id !== id);
+        const sameCategory = others.filter(e => e.category === current.category);
+        const related = sameCategory.length >= 4
+          ? sameCategory.slice(0, 4)
+          : [...sameCategory, ...others.filter(e => e.category !== current.category)].slice(0, 4);
+        setRelated(related);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -301,7 +311,7 @@ export default function EbookDetailPage({ onAddToCart }) {
                   onClick={handleDownloadPdf}
                   disabled={saving}
                 >
-                  {saving ? '⏳ Đang tải...' : '📥 Tải PDF (cần mua)'}
+                  {saving ? 'Đang tải...' : 'Tải PDF (cần mua)'}
                 </button>
               )}
               <button className="btn-outline" style={{ width: '100%', marginBottom: 10, padding: 11 }} onClick={() => onAddToCart?.(ebook)}>
@@ -339,7 +349,10 @@ export default function EbookDetailPage({ onAddToCart }) {
                   onClick={() => navigate(`/ebooks/${eb._id}`)}
                   onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
                   onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
-                  <div style={{ height: 120, background: 'linear-gradient(135deg,#1B6B4A,#2a9d5c)', position: 'relative' }}>
+                  <div style={{ height: 120, background: 'linear-gradient(135deg,#1B6B4A,#2a9d5c)', position: 'relative', overflow: 'hidden' }}>
+                    {(eb.thumbnail || eb.images?.[0]?.url)
+                      ? <img src={eb.thumbnail || eb.images[0].url} alt={eb.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white', opacity: 0.6 }}>📖</div>}
                     {eb.badge === 'best' && <span style={{ position: 'absolute', top: 8, left: 8, background: '#e8a020', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3 }}>BEST SELLER</span>}
                     {eb.badge === 'new' && <span style={{ position: 'absolute', top: 8, left: 8, background: 'var(--primary)', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3 }}>MỚI</span>}
                     {eb.badge === 'hot' && <span style={{ position: 'absolute', top: 8, left: 8, background: '#ef4444', color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3 }}>HOT</span>}

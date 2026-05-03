@@ -90,7 +90,7 @@ export default function PartnerDashboardPage() {
       setShowForm(false);
       setForm({ title: '', description: '', price: '', category: 'mien-trung', location: '', duration: '', tags: '', badge: '' });
       setImgFiles([]); setImgPreviews([]); setPdfFile(null);
-      alert('✅ Ebook đã nộp lên Admin để xét duyệt!');
+      alert('Ebook đã nộp lên Admin để xét duyệt!');
     } catch (err) {
       setUploading(false);
       alert(err.response?.data?.message || 'Lỗi tạo ebook');

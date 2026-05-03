@@ -79,7 +79,7 @@ export default function PartnerApplyPage() {
         if (!fileUrl) { setSaving(false); return; }
       }
       await api.post('/partner/apply', { ...form, sampleFileUrl: fileUrl });
-      alert('✅ Đã nộp đơn đăng ký đối tác! Admin sẽ xem xét trong 1-3 ngày làm việc.');
+      alert('Đã nộp đơn đăng ký đối tác! Admin sẽ xem xét trong 1-3 ngày làm việc.');
       navigate('/profile');
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi nộp đơn');

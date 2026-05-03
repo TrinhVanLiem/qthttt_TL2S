@@ -131,7 +131,7 @@ export default function AdminPage() {
       setEbooks([data, ...ebooks]);
       setForm({ title: '', description: '', price: '', category: 'mien-trung', location: '', duration: '', tags: '', badge: '' });
       setImageFiles([]); setImagePreviews([]); setUploadedImages([]); setPdfFile(null);
-      alert('✅ Tạo e-book thành công!');
+      alert('Tạo e-book thành công!');
     } catch (err) { alert(err.response?.data?.message || 'Lỗi tạo ebook'); }
     finally { setSaving(false); setUploading(false); }
   };
@@ -179,7 +179,7 @@ export default function AdminPage() {
       const { data } = await api.put(`/ebooks/${editEbook._id}`, { ...editForm, price: Number(editForm.price), tags });
       setEbooks(ebooks.map(eb => eb._id === data._id ? data : eb));
       setEditEbook(null);
-      alert('✅ Cập nhật thành công!');
+      alert('Cập nhật thành công!');
     } catch (err) { alert(err.response?.data?.message || 'Lỗi cập nhật'); }
     finally { setEditSaving(false); }
   };
@@ -470,7 +470,7 @@ export default function AdminPage() {
                                 <button onClick={async () => {
                                   await api.put(`/partner/admin/applications/${app._id}/approve`);
                                   setPartnerApps(prev => prev.map(a => a._id === app._id ? { ...a, status: 'approved' } : a));
-                                  alert('✅ Đã duyệt và gửi email!');
+                                  alert('Đã duyệt và gửi email!');
                                 }} style={{ background: '#dcfce7', color: '#16a34a', padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                                   <FaCheck size={10} /> Duyệt
                                 </button>
@@ -520,7 +520,7 @@ export default function AdminPage() {
                                 await api.put(`/partner/admin/ebooks/${eb._id}/approve`);
                                 setPendingEbooks(prev => prev.filter(e => e._id !== eb._id));
                                 setEbooks(prev => [...prev, { ...eb, approvalStatus: 'approved', isApproved: true }]);
-                                alert('✅ Đã duyệt ebook và gửi email!');
+                                alert('Đã duyệt ebook và gửi email!');
                               }} style={{ background: '#dcfce7', color: '#16a34a', padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                                 <FaCheck size={10} /> Duyệt
                               </button>
@@ -658,9 +658,9 @@ export default function AdminPage() {
                           }
                         }}
                         style={{ background: 'var(--primary)', color: 'white', padding: '9px 20px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {apiStatus === 'checking' ? '⏳ Đang kiểm tra...' : '🔄 Test kết nối backend'}
+                        {apiStatus === 'checking' ? 'Đang kiểm tra...' : 'Test kết nối backend'}
                       </button>
-                      {apiStatus === 'ok' && <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 13 }}>✅ Backend hoạt động tốt!</span>}
+                      {apiStatus === 'ok' && <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 13 }}>Backend hoạt động tốt!</span>}
                       {apiStatus === 'error' && <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>❌ Không kết nối được backend</span>}
                     </div>
                   </div>
@@ -1047,7 +1047,7 @@ export default function AdminPage() {
                   setPendingEbooks(prev => prev.filter(e => e._id !== rejectModal.id));
                 }
                 setRejectModal(null); setRejectReason('');
-                alert('✅ Đã từ chối và gửi email thông báo!');
+                alert('Đã từ chối và gửi email thông báo!');
               }} style={{ flex: 2, padding: 11, background: rejectReason.trim() ? '#dc2626' : '#9ca3af', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: rejectReason.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <FaTimes /> Xác nhận từ chối
               </button>

@@ -49,10 +49,15 @@ export default function UserDashboardPage() {
   const [supportForm, setSupportForm] = useState({ subject: '', message: '' });
   const [supportSent, setSupportSent] = useState(false);
 
+  // Active coupons (for overview tab)
+  const [activeCoupons, setActiveCoupons] = useState([]);
+  const [copiedCode, setCopiedCode] = useState(null);
+
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
     api.get('/orders/my').then(r => setOrders(r.data)).finally(() => setLoading(false));
     api.get('/partner/application').then(r => setPartnerApp(r.data)).catch(() => {});
+    api.get('/coupons/active').then(r => setActiveCoupons(r.data)).catch(() => {});
     setAccountForm({ name: user.name || '' });
   }, [user]);
 
@@ -72,6 +77,11 @@ export default function UserDashboardPage() {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+  const copyCoupon = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const handleDownloadPdf = async (ebookId) => {
@@ -93,7 +103,7 @@ export default function UserDashboardPage() {
     try {
       const { data } = await api.put('/users/me', { name: accountForm.name.trim() });
       updateUser({ name: data.name });
-      setAccountMsg({ type: 'ok', text: '✅ Cập nhật thành công!' });
+      setAccountMsg({ type: 'ok', text: 'Cập nhật thành công!' });
     } catch (err) {
       setAccountMsg({ type: 'err', text: err.response?.data?.message || 'Lỗi cập nhật' });
     } finally { setAccountSaving(false); }
@@ -209,6 +219,43 @@ export default function UserDashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* ===== PROMO CARD ===== */}
+            {activeCoupons.length > 0 && (
+              <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <FaGift color="#e8a020" size={16} />
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Ưu đãi dành riêng cho bạn</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-gray)', marginLeft: 4 }}>({activeCoupons.length} mã đang hoạt động)</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                  {activeCoupons.map(c => (
+                    <div key={c._id} style={{ background: 'linear-gradient(135deg,#f0faf5,#e6f7ef)', border: '1.5px dashed #6ee7b7', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 15, color: 'var(--primary)', letterSpacing: 1 }}>{c.code}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                          Giảm {c.type === 'percent' ? `${c.discount}%` : `${Number(c.discount).toLocaleString('vi-VN')}đ`}
+                          {c.minOrder > 0 && ` · Đơn từ ${Number(c.minOrder).toLocaleString('vi-VN')}đ`}
+                        </div>
+                        {c.expiry && (
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
+                            HSD: {new Date(c.expiry).toLocaleDateString('vi-VN')}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => copyCoupon(c.code)}
+                        style={{ background: copiedCode === c.code ? 'var(--primary)' : 'white', color: copiedCode === c.code ? 'white' : 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: 6, fontSize: 11, fontWeight: 700, padding: '5px 10px', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
+                        {copiedCode === c.code ? '✓ Đã copy' : 'Sao chép'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 10 }}>
+                  💡 Nhập mã vào giỏ hàng khi thanh toán để nhận ưu đãi.
+                </div>
+              </div>
+            )}
 
             {/* Recent orders */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -547,7 +594,7 @@ export default function UserDashboardPage() {
 
                 {/* FAQ */}
                 <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 18 }}>❓ Câu hỏi thường gặp</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 18 }}> Câu hỏi thường gặp</div>
                   {[
                     { q: 'Tôi có thể tải PDF bao nhiêu lần?', a: 'Không giới hạn số lần tải sau khi đã mua. Bạn có thể tải bất cứ lúc nào từ trang “Ebook đã mua”.' },
                     { q: 'Tôi quên mật khẩu, phải làm sao?', a: 'Trên trang đăng nhập, nhấn “Quên mật khẩu”. Hệ thống sẽ gửi email đặt lại.' },
@@ -566,11 +613,11 @@ export default function UserDashboardPage() {
 
                 {/* Contact form */}
                 <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
-                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>✉️ Gửi yêu cầu hỗ trợ</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}> Gửi yêu cầu hỗ trợ</div>
                   <div style={{ fontSize: 13, color: 'var(--text-gray)', marginBottom: 18 }}>Thường phản hồi trong vòng 24 giờ</div>
                   {supportSent ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                      <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                      <div style={{ fontSize: 48, marginBottom: 12 }}></div>
                       <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Gửi thành công!</div>
                       <div style={{ fontSize: 13, color: 'var(--text-gray)', marginBottom: 20 }}>Chúng tôi đã nhận được yêu cầu và sẽ phản hồi qua email {user.email}</div>
                       <button onClick={() => { setSupportSent(false); setSupportForm({ subject: '', message: '' }); }}
@@ -613,8 +660,8 @@ export default function UserDashboardPage() {
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
                     <div style={{ fontSize: 12, color: 'var(--text-gray)', marginBottom: 8, fontWeight: 600 }}>HOẶC LIÊN HỆ TRỰC TIếP</div>
                     {[
-                      { icon: '📧', text: 'support@travelguidehub.vn' },
-                      { icon: '⏰', text: 'Phản hồi trong 24 giờ (ngay cả cuối tuần)' },
+                      { icon: '', text: 'support@travelguidehub.vn' },
+                      { icon: '', text: 'Phản hồi trong 24 giờ (ngay cả cuối tuần)' },
                     ].map((c, i) => (
                       <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--text-gray)', alignItems: 'center', marginBottom: 5 }}>
                         <span>{c.icon}</span> {c.text}

@@ -47,14 +47,13 @@ export default function HomePage({ onAddToCart }) {
   }, []);
 
   const displayBooks = ebooks.length > 0 ? ebooks : SAMPLE_EBOOKS;
-  const domestic = displayBooks.filter(e => !['Bangkok', 'Singapore', 'Hàn Quốc', 'Nhật Bản', 'Thái Lan'].includes(e.location)).slice(0, 4);
-  const international = displayBooks.filter(e => ['Bangkok', 'Singapore', 'Hàn Quốc', 'Nhật Bản', 'Thái Lan'].includes(e.location)).slice(0, 4);
-  const fallbackIntl = [
-    { _id: 'i1', title: 'Guide Singapore 4N3Đ', price: 99000, location: 'Singapore' },
-    { _id: 'i2', title: 'Guide Hàn Quốc 5N4Đ', price: 129000, location: 'Hàn Quốc' },
-    { _id: 'i3', title: 'Guide Nhật Bản 5N4Đ', price: 149000, location: 'Nhật Bản' },
-    { _id: 'i4', title: 'Guide Thái Lan 4N3Đ', price: 99000, location: 'Thái Lan' },
-  ];
+
+  // Trong nước = tất cả trừ category 'nuoc-ngoai'
+  const domestic = displayBooks.filter(e => e.category !== 'nuoc-ngoai').slice(0, 4);
+  // Quốc tế = category 'nuoc-ngoai'
+  const international = displayBooks.filter(e => e.category === 'nuoc-ngoai').slice(0, 4);
+  // Bán chạy = sắp xếp theo số lượt bán (sales) giảm dần
+  const bestsellers = [...displayBooks].sort((a, b) => (b.sales || 0) - (a.sales || 0)).slice(0, 6);
 
   return (
     <div>
@@ -96,7 +95,7 @@ export default function HomePage({ onAddToCart }) {
           </div>
           {loading ? <Spinner /> : (
             <div className="grid-6">
-              {displayBooks.slice(0, 6).map(eb => (
+              {bestsellers.map(eb => (
                 <EbookCard key={eb._id} ebook={eb} onBuy={onAddToCart} onClick={id => navigate(`/ebooks/${id}`)} />
               ))}
             </div>
@@ -116,7 +115,11 @@ export default function HomePage({ onAddToCart }) {
               <div className="grid-4">
                 {(domestic.length > 0 ? domestic : displayBooks.slice(0, 4)).map(eb => (
                   <div key={eb._id} style={{ background: 'white', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow)', cursor: 'pointer' }} onClick={() => navigate(`/ebooks/${eb._id}`)}>
-                    <div style={{ height: 110, background: 'linear-gradient(135deg,#e8f5ef,#c8e6d8)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 32, color: 'var(--primary)' }}><BsImage /></div>
+                    <div style={{ height: 110, background: 'linear-gradient(135deg,#1B6B4A,#2a9d5c)', overflow: 'hidden', position: 'relative' }}>
+                      {(eb.thumbnail || eb.images?.[0]?.url)
+                        ? <img src={eb.thumbnail || eb.images[0].url} alt={eb.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white', opacity: 0.7 }}>🗺️</div>}
+                    </div>
                     <div style={{ padding: '10px 12px' }}>
                       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, lineHeight: 1.3 }}>{eb.title}</div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--orange)' }}>{eb.price?.toLocaleString('vi-VN')}đ</div>
@@ -131,9 +134,13 @@ export default function HomePage({ onAddToCart }) {
                 <a href="/ebooks" className="view-all">Xem tất cả</a>
               </div>
               <div className="grid-4">
-                {(international.length > 0 ? international : fallbackIntl).map(eb => (
+                {(international.length > 0 ? international : displayBooks.slice(0, 4)).map(eb => (
                   <div key={eb._id} style={{ background: 'white', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow)', cursor: 'pointer' }} onClick={() => navigate(`/ebooks/${eb._id}`)}>
-                    <div style={{ height: 110, background: 'linear-gradient(135deg,#e8eeff,#c8d6f0)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 32, color: '#2a5c8a' }}><FaPlane /></div>
+                    <div style={{ height: 110, background: 'linear-gradient(135deg,#1a3a6b,#2a5c8a)', overflow: 'hidden', position: 'relative' }}>
+                      {(eb.thumbnail || eb.images?.[0]?.url)
+                        ? <img src={eb.thumbnail || eb.images[0].url} alt={eb.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'white', opacity: 0.7 }}>✈️</div>}
+                    </div>
                     <div style={{ padding: '10px 12px' }}>
                       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, lineHeight: 1.3 }}>{eb.title}</div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--orange)' }}>{eb.price?.toLocaleString('vi-VN')}đ</div>
