@@ -109,7 +109,7 @@ const approveApplication = async (req, res) => {
     // Gửi email
     await sendMail({
       to: app.user.email,
-      subject: '🎉 Đơn đăng ký Đối tác đã được duyệt!',
+      subject: 'Đơn đăng ký Đối tác đã được duyệt!',
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:auto">
           <h2 style="color:#2a9d5c">Chào mừng bạn trở thành Đối tác!</h2>
@@ -188,7 +188,7 @@ const approveEbook = async (req, res) => {
 
     await sendMail({
       to: ebook.seller.email,
-      subject: '✅ Ebook của bạn đã được duyệt!',
+      subject: 'Ebook của bạn đã được duyệt!',
       html: `
         <div style="font-family:sans-serif;max-width:500px;margin:auto">
           <h2 style="color:#2a9d5c">Ebook đã được phê duyệt</h2>

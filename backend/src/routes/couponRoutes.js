@@ -44,8 +44,10 @@ router.get('/active', async (req, res) => {
     const now = new Date();
     const coupons = await Coupon.find({
       active: true,
-      $or: [{ expiry: null }, { expiry: { $gt: now } }],
-      $or: [{ usageLimit: null }, { $expr: { $lt: ['$usedCount', '$usageLimit'] } }],
+      $and: [
+        { $or: [{ expiry: null }, { expiry: { $gt: now } }] },
+        { $or: [{ usageLimit: null }, { $expr: { $lt: ['$usedCount', '$usageLimit'] } }] },
+      ],
     }).select('code discount type minOrder expiry').sort({ createdAt: -1 });
     res.json(coupons);
   } catch (err) {
